@@ -1,3 +1,11 @@
+#
+# Copyright 2021, Synopsys, Inc.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-3-Clause license found in
+# the LICENSE file in the root directory of this source tree.
+#
+
 #=============================================================
 # OS-specific definitions
 #=============================================================
@@ -42,8 +50,10 @@ AR = arac
 DOWNLOAD_SCRIPT := ./scripts/download_mli.sh
 ADAPTATION_SCRIPT := ./scripts/adapt_model.sh
 
+
+
 #=============================================================
-# TODO: change this description
+# General definitions
 #=============================================================
 
 GENDIR := gen
@@ -85,6 +95,8 @@ else
 	EMBARC_MLI_MD5 := "22555d76097727b00e731563b42cb098"
 endif
 
+
+
 #=============================================================
 # Applications settings
 #=============================================================
@@ -99,11 +111,12 @@ CXXFLAGS += -fno-rtti -fno-exceptions -fno-threadsafe-statics -Werror -fno-unwin
 
 CCFLAGS +=  -Wimplicit-function-declaration -Werror -fno-unwind-tables -ffunction-sections -fdata-sections -fmessage-length=0 -DTF_LITE_STATIC_MEMORY -DTF_LITE_DISABLE_X86_NEON -DARC_CUSTOM -DARC_MLI -tcf_core_config -Hnocopyr -Hpurge -Hdense_prologue -fslp-vectorize-aggressive -ffunction-sections -fdata-sections  -Hcl -Hcrt_fast_memcpy -Hcrt_fast_memset -Hheap=24K -I. -I./third_party/gemmlowp -I./third_party/flatbuffers/include -I./third_party/ruy -I. -I./third_party/kissfft -O3
 
-LDFLAGS := -m
+LDFLAGS := -m -Hlib=$(BUILDLIB_DIR)
 CXXFLAGS += -tcf=$(TCF_FILE)
 CCFLAGS += -tcf=$(TCF_FILE)
-# CXXFLAGS += -Hlib=$(BUILD_LIB_DIR)
-# CCFLAGS += -Hlib=$(BUILD_LIB_DIR)
+ifneq ($(LCF_FILE), )
+  LDFLAGS += $(notdir $(LCF_FILE))
+endif
 
 ifneq ($(filter $(ARC_TAGS), mli20_experimental),)
 	CXXFLAGS += -DMLI_2_0
@@ -121,7 +134,6 @@ MLI_ONLY ?= false
 INCLUDES := \
 	-I./$(MLI_LIB_DIR)/include/ \
 	-I./$(MLI_LIB_DIR)/include/api
-
 
 MS_INCLUDES := \
 	$(INCLUDES) \
@@ -218,18 +230,13 @@ $(OBJDIR)/examples/person_detection/%.o: examples/person_detection/%.cc
 	$(CXX) $(CXXFLAGS) $(EXT_CFLAGS) $(PD_INCLUDES) -c $< -o $@
 
 
+
 #=================================================================
 # Global rules
 #=================================================================
 
 APP_RUN := mdb -run -tcf=$(TCF_FILE) $(DBG_ARGS)
 APP_DEBUG := mdb -OK -tcf=$(TCF_FILE) $(DBG_ARGS)
-
-# run: $(OUT_NAME)
-# 	$(APP_RUN) $(OUT_NAME) $(RUN_ARGS)
-
-# debug: $(OUT_NAME)
-# 	$(APP_DEBUG) $(OUT_NAME) $(RUN_ARGS)
 
 microlite: $(LIBTFLM)
 
@@ -244,17 +251,17 @@ person_detection: person_detection.elf
 
 hello_world.elf: build_mli microlite $(HW_OBJS)
 	@mkdir -p $(BINDIR)/$(basename $@)
-	$(eval LDFLAGS += -Coutput=$(BINDIR)/$(basename $@)/memory.map)
+	$(eval LDFLAGS += -Hldopt=-Coutput=$(BINDIR)/$(basename $@)/memory.map)
 	$(LD) $(CXXFLAGS) $(HW_OBJS) $(LIBTFLM) $(LIBMLI) $(LDFLAGS) -o $(BINDIR)/$(basename $@)/$@
 
 micro_speech.elf: build_mli microlite $(MS_OBJS)
 	@mkdir -p $(BINDIR)/$(basename $@)
-	$(eval LDFLAGS += -Coutput=$(BINDIR)/$(basename $@)/memory.map)
+	$(eval LDFLAGS += -Hldopt=-Coutput=$(BINDIR)/$(basename $@)/memory.map)
 	$(LD) $(CXXFLAGS) $(MS_OBJS) $(LIBTFLM) $(LIBMLI) $(LDFLAGS) -o $(BINDIR)/$(basename $@)/$@
 
 person_detection.elf: build_mli microlite $(PD_OBJS)
 	@mkdir -p $(BINDIR)/$(basename $@)
-	$(eval LDFLAGS += -Coutput=$(BINDIR)/$(basename $@)/memory.map)
+	$(eval LDFLAGS += -Hldopt=-Coutput=$(BINDIR)/$(basename $@)/memory.map)
 	$(LD) $(CXXFLAGS) $(PD_OBJS) $(LIBTFLM) $(LIBMLI) $(LDFLAGS) -o $(BINDIR)/$(basename $@)/$@
 
 clean: 
@@ -271,12 +278,3 @@ build_mli:
 
 adapt_model:
 	-@$(ADAPTATION_SCRIPT) $(MODEL_NAME)
-
-
-
-#=================================================================
-# Execution rules
-#=================================================================
-
-
-
