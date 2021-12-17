@@ -10,10 +10,14 @@
 set -e
 
 build_mli() {
-	echo "Building MLI in ${MLI_LIB_DIR}..."
-	if [[ ${ARC_TAGS} =~ "mli20_experimental" ]] ; then
+	if [[ ${ARC_TAGS} =~ "emsdp" ]] ; then
+		# No need to build MLI for ARC EM SDP.
+		exit
+	elif [[ ${ARC_TAGS} =~ "mli20_experimental" ]] ; then
+		echo "Building MLI 2.0 in ${MLI_LIB_DIR}..."
 		make -C ${PWD}/${MLI_LIB_DIR}/lib/make build TCF_FILE=${TCF_FILE} BUILDLIB_DIR=${BUILDLIB_DIR} GEN_EXAMPLES=0 JOBS=4
 	else
+		echo "Building MLI 1.1 in ${MLI_LIB_DIR}..."
 		make -j 4 -C ${PWD}/${MLI_LIB_DIR}/lib/make TCF_FILE=${TCF_FILE}
 	fi
 }

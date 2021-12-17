@@ -8,7 +8,6 @@ This repository contains [TensorFlow Lite Micro Library (TFLM)](https://github.c
 -   [Important Links to the Original TFLM Repository](#Important-Links-to-the-Original-TFLM-Repository)
 -   [Prerequisites](#Prerequisites)
 -   [How to Install](#How-to-Install)
--   [Initial Setup](#Initial-Setup)
 -   [General Build Process](#General-Build-Process)
 -   [Build and Run Examples](#Build-and-Run-Examples)
 -   [Model Adaptation Tool](#Model-Adaptation-Tool-beta)
@@ -22,16 +21,16 @@ This repository contains [TensorFlow Lite Micro Library (TFLM)](https://github.c
 ## Important Links to the Original TFLM Repository
 
 * [EmbARC MLI Library optimized TFLM kernels](https://github.com/foss-for-synopsys-dwc-arc-processors/tflite-micro/tree/fork_main/tensorflow/lite/micro/kernels/arc_mli)
-* [Building TFLM for Synopsys DesignWare ARC VPX and EM/HS Processors]()
+* [Building TFLM for Synopsys DesignWare ARC VPX and EM/HS Processors](https://github.com/tensorflow/tflite-micro/tree/main/tensorflow/lite/micro/tools/make/targets/arc)
 
 ## Prerequisites
 
 To build and run examples for an ARC EM/HS/VPX platform, you need the following software:
 
-* Synopsys MetaWare
-Development Toolkit version 2019.12 or higher for MLI 1.1 and 2021.09 or higher for MLI Library 2.0
-* Make tool (make or gmake)
-* CMake 3.18 or higher
+* [Synopsys MetaWare
+Development Toolkit](https://www.synopsys.com/dw/ipdir.php?ds=sw_metaware) version 2019.12 or higher for MLI 1.1 and 2021.09 or higher for MLI Library 2.0
+* [GNU Make](https://www.gnu.org/software/make/) tool (make or gmake) version 3.82 or higher
+* [CMake](https://cmake.org/) 3.18 or higher
 
 If you are using MLI 2.0, the [Model Adaptation Tool](#Model-Adaptation-Tool-beta) will also require following:
 * [Python](https://www.python.org/downloads/) 3.7 or higher
@@ -60,7 +59,7 @@ Development Toolkit or MetaWare Lite options also available on this page).
 
 Run the downloaded installer and follow the instructions to set up the toolchain on your platform.
 
-Please consider that currently can be only build and run on Linux machines, so you need to install Linux version of MWDT.
+Please consider that the examples can be only built and run on Linux machines, so you need to install Linux version of MWDT.
 
 ### ARC EM Software Development Platform (ARC EM SDP)
 
@@ -96,19 +95,8 @@ card instead of using the debugger.
 
 * Make Tool
 
-A `'make'` tool is required for both phases of deploying Tensorflow Lite Micro
-applications on ARC EM SDP: 
-1. Application project generation 
-2. Working with generated application (build and run)
-
-For the first phase you need an environment and make tool compatible with
-Tensorflow Lite for Micro build system. At the moment of this writing, this
-requires make >=3.82 and a *nix-like environment which supports shell and native
-commands for file manipulations. MWDT toolkit is not required for this phase.
-
-For the second phase, requirements are less strict. The gmake version delivered
-with MetaWare Development Toolkit is sufficient. There are no shell and *nix
-command dependencies, so Windows can be used
+[GNU Make](https://www.gnu.org/software/make/) tool (make or gmake) version 3.82 or higher
+is required.
 
 * Serial Terminal Emulation Application
 
@@ -156,6 +144,42 @@ Board: ARC EM Software Development Platform v1.0
 …
 ```
 
+### Custom ARC EM/HS/VPX Platform
+
+This section describes how to deploy on a Custom ARC VPX or EM/HS platform defined only by a TCF (Tool configuration File, created at CPU configuration time) and optional LCF (Linker Command File). In this case, the real hardware is unknown, and applications can be run only in the nSIM simulator included with the MetaWare toolkit.
+
+VPX support is presented as an experimental feature of supporting embARC MLI Library version 2.0 and model adaptation.
+
+#### Initial Setup
+
+To use a custom ARC EM/HS/VPX platform, you need the following : 
+
+* MetaWare Development Toolkit
+
+See
+[Install the Synopsys DesignWare ARC MetaWare Development Toolkit](#Install-the-Synopsys-DesignWare-ARC-MetaWare-Development-Toolkit)
+section for instructions on toolchain installation.
+
+* Make Tool
+
+[GNU Make](https://www.gnu.org/software/make/) tool (make or gmake) version 3.82 or higher
+is required.
+
+* CMake Tool
+
+[CMake](https://cmake.org/) 3.18 or higher is required.
+
+If you are using the [Model Adaptation Tool](#Model-Adaptation-Tool-experimental-feature), you will also need to install:
+
+* Python 
+
+[Python](https://www.python.org/downloads/) 3.7 or higher is required.
+
+* TensorFlow for Python 
+
+[TensorFlow for Python](https://www.tensorflow.org/install/pip) version 2.5 or higher is required.
+
+
 ## General Build Process
 
 General template of the build command looks like:
@@ -165,8 +189,8 @@ make <options> <target>
 Available `<targets>`:
 - `<example_name>` - build and run example with all dependencies. More at [Build and Run Examples](#Build-and-Run-Examples).
 - `build_mli` - only download and build embARC MLI Library for target configuration.
-- `microlite` - only build TFLM as a library for specific configuration. Note: you have to build MLI Library before running this target.
-- `adapt_model MODEL_NAME=<target>` - use Model Adaptation Tool to adapt example model to use it with MLI 2.0. More at [Model Adaptation Tool](#Model-Adaptation-Tool-beta).
+- `microlite` - only build TFLM as a library for specific configuration. Note: you have to build MLI Library using `build_mli` target before running this one.
+- `adapt_model MODEL_NAME=<example_name>` - use Model Adaptation Tool to adapt example model to use it with MLI 2.0. Available `<example_names>`: micro_speech, person_detection. More at [Model Adaptation Tool](#Model-Adaptation-Tool-beta).
 - `clean` - delete binaries and object files for built examples.
 - `clean_mli` - delete MLI Libraries.
 - `clean_all` - delete everything built or downloaded including converted models.
@@ -183,6 +207,11 @@ Available `<options>`:
 
 [Link to the original example description.](https://github.com/tensorflow/tflite-micro/tree/main/tensorflow/lite/micro/examples/hello_world)
 
+#### For EM SDP (using MLI 1.1):
+```
+make ARC_TAGS=emsdp hello_world
+```
+
 #### For EM (using MLI 1.1):
 ```
 make TCF_FILE=<path_to_tcf_file> LCF_FILE=<path_to_lcf_file> hello_world
@@ -196,6 +225,11 @@ make TCF_FILE=<path_to_tcf_file> LCF_FILE=<path_to_lcf_file> ARC_TAGS=mli20_expe
 ### Micro Speech
 
 [Link to the original example description.](https://github.com/tensorflow/tflite-micro/tree/main/tensorflow/lite/micro/examples/micro_speech)
+
+#### For EM SDP (using MLI 1.1):
+```
+make ARC_TAGS=emsdp micro_speech
+```
 
 #### For EM (using MLI 1.1):
 ```
@@ -216,6 +250,11 @@ make TCF_FILE=<path_to_tcf_file> LCF_FILE=<path_to_lcf_file> ARC_TAGS=mli20_expe
 
 [Link to the original example description.](https://github.com/tensorflow/tflite-micro/tree/main/tensorflow/lite/micro/examples/person_detection)
 
+#### For EM SDP (using MLI 1.1):
+```
+make ARC_TAGS=emsdp person_detection
+```
+
 #### For EM (using MLI 1.1):
 ```
 make TCF_FILE=<path_to_tcf_file> LCF_FILE=<path_to_lcf_file> person_detection
@@ -230,6 +269,38 @@ Then build and run an example:
 ```
 make TCF_FILE=<path_to_tcf_file> LCF_FILE=<path_to_lcf_file> ARC_TAGS=mli20_experimental person_detection
 ```
+
+### Run the Application on the EM SDP Board from the microSD Card
+
+1.  Go to `gen/<target_name>/bin/<example_name>` and copy `.elf` file as `app.elf`.
+    For example:
+```
+    cd gen/emsdp_em11d_em9d_dfss/bin/hello_world
+    cp hello_world.elf app.elf
+```
+
+2.  Copy `app.elf` into the root of microSD card. Note that the card must be formatted
+    as FAT32 with default cluster size (but less than 32 KBytes)
+
+3.  Plug in the microSD card into the J11 connector.
+
+4.  Push the RST button. If a red LED is lit beside RST button, push the CFG
+    button.
+
+5.  Using serial terminal, create uboot environment file to automatically run
+    the application on start-up. Type or copy next sequence of commands into
+    serial terminal one-by-another:
+```
+   setenv loadaddr 0x10800000
+   setenv bootfile app.elf
+   setenv bootdelay 1
+   setenv bootcmd fatload mmc 0 \$\{loadaddr\} \$\{bootfile\} \&\& bootelf
+   saveenv
+```
+
+6.  Push the CFG button on the board.
+
+You will see the application output in the serial terminal.
 
 ## Model Adaptation Tool (beta)
 

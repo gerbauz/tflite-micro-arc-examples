@@ -58,14 +58,20 @@ ADAPTATION_SCRIPT := ./scripts/adapt_model.sh
 
 GENDIR := gen
 MLIDIR := mli_lib
+EMSDPDIR := emsdp
 
 ifeq ($(TCF_FILE),)
-	TCF_FILE = em7d_voice_audio
+  ifneq ($(filter $(ARC_TAGS), emsdp),)
+    TCF_FILE = $(MLIDIR)/arc_mli_emsdp_em11d_em9d_dfss/hw/emsdp_em11d_em9d_dfss.tcf
+    LCF_FILE = $(EMSDPDIR)/emsdp.lcf
+  else
+    TCF_FILE = em7d_voice_audio
+  endif
 endif
 
 TARGET_POSTFIX = $(notdir $(basename $(TCF_FILE)))
 ifneq ($(filter $(ARC_TAGS), mli20_experimental),)
-	TARGET_POSTFIX := $(TARGET_POSTFIX)_mli20
+  TARGET_POSTFIX := $(TARGET_POSTFIX)_mli20
 endif
 
 LIBTFLM := $(GENDIR)/$(TARGET_POSTFIX)/lib/libtensorflow-microlite.a
@@ -76,23 +82,29 @@ ADAPTDIR := $(GENDIR)/adapted_models
 MLI_LIB_DIR := $(MLIDIR)/arc_mli_$(TARGET_POSTFIX)
 
 ifneq ($(filter $(ARC_TAGS), mli20_experimental),)
-	LIBMLI := $(MLI_LIB_DIR)/bin/arc/libmli.a
+  LIBMLI := $(MLI_LIB_DIR)/bin/arc/libmli.a
 else
-	LIBMLI := $(MLI_LIB_DIR)/bin/libmli.a
+  ifneq ($(filter $(ARC_TAGS), emsdp),)
+    LIBMLI := $(MLI_LIB_DIR)/bin/emsdp_em11d_em9d_dfss/release/libmli.a
+  else
+    LIBMLI := $(MLI_LIB_DIR)/bin/libmli.a
+  endif
 endif
 
 
 
 #=================================================================
-# TODO: rename to links or something and move to up
+# URLs to packages
 #=================================================================
 
 ifneq ($(filter $(ARC_TAGS), mli20_experimental),)
-	EMBARC_MLI_URL := "https://github.com/foss-for-synopsys-dwc-arc-processors/embarc_mli/archive/refs/tags/Release_2.0.zip"
-	EMBARC_MLI_MD5 := "fe256e06e31e27b75fb166aeeafc7f88"
+  EMBARC_MLI_URL := "https://github.com/foss-for-synopsys-dwc-arc-processors/embarc_mli/archive/refs/tags/Release_2.0.zip"
+  EMBARC_MLI_MD5 := "173990c2dde4efef6a2c95b92d1f0244"
+else ifneq ($(filter $(ARC_TAGS), emsdp),)
+  EMBARC_MLI_URL := "https://github.com/foss-for-synopsys-dwc-arc-processors/embarc_mli/releases/download/Release_1.1/embARC_MLI_package.zip"
 else
-	EMBARC_MLI_URL := "https://github.com/foss-for-synopsys-dwc-arc-processors/embarc_mli/archive/refs/tags/Release_1.1.zip"
-	EMBARC_MLI_MD5 := "22555d76097727b00e731563b42cb098"
+  EMBARC_MLI_URL := "https://github.com/foss-for-synopsys-dwc-arc-processors/embarc_mli/archive/refs/tags/Release_1.1.zip"
+  EMBARC_MLI_MD5 := "22555d76097727b00e731563b42cb098"
 endif
 
 
@@ -111,19 +123,24 @@ CXXFLAGS += -fno-rtti -fno-exceptions -fno-threadsafe-statics -Werror -fno-unwin
 
 CCFLAGS +=  -Wimplicit-function-declaration -Werror -fno-unwind-tables -ffunction-sections -fdata-sections -fmessage-length=0 -DTF_LITE_STATIC_MEMORY -DTF_LITE_DISABLE_X86_NEON -DARC_CUSTOM -DARC_MLI -tcf_core_config -Hnocopyr -Hpurge -Hdense_prologue -fslp-vectorize-aggressive -ffunction-sections -fdata-sections  -Hcl -Hcrt_fast_memcpy -Hcrt_fast_memset -Hheap=24K -I. -I./third_party/gemmlowp -I./third_party/flatbuffers/include -I./third_party/ruy -I. -I./third_party/kissfft -O3
 
-LDFLAGS := -m -Hlib=$(BUILDLIB_DIR)
+LDFLAGS := -m
+ifneq ($(BUILDLIB_DIR), )
+  LDFLAGS += -Hlib=$(BUILDLIB_DIR)
+else
+  $(warning BUILDLIB_DIR variable is not specified. Default will be used.)
+endif
 CXXFLAGS += -tcf=$(TCF_FILE)
 CCFLAGS += -tcf=$(TCF_FILE)
 ifneq ($(LCF_FILE), )
-  LDFLAGS += $(notdir $(LCF_FILE))
+  LDFLAGS += $(LCF_FILE)
 endif
 
 ifneq ($(filter $(ARC_TAGS), mli20_experimental),)
-	CXXFLAGS += -DMLI_2_0
-	CCFLAGS += -DMLI_2_0
+  CXXFLAGS += -DMLI_2_0
+  CCFLAGS += -DMLI_2_0
 else
-	CXXFLAGS += -Hon=Long_enums
-	CCFLAGS += -Hon=Long_enums
+  CXXFLAGS += -Hon=Long_enums
+  CCFLAGS += -Hon=Long_enums
 endif
 
 
@@ -168,11 +185,11 @@ HW_SRCS := \
 
 # Use adapted model if EmbARC MLI 2.0 is used
 ifneq ($(filter $(ARC_TAGS), mli20_experimental), )
-	MS_MODEL := examples/micro_speech/adapted_model/micro_speech_model_data.cc
-	PD_MODEL := examples/person_detection/adapted_model/person_detect_model_data.cc
+  MS_MODEL := examples/micro_speech/adapted_model/micro_speech_model_data.cc
+  PD_MODEL := examples/person_detection/adapted_model/person_detect_model_data.cc
 else
-	MS_MODEL := examples/micro_speech/model/micro_speech_model_data.cc
-	PD_MODEL := examples/person_detection/model/person_detect_model_data.cc
+  MS_MODEL := examples/micro_speech/model/micro_speech_model_data.cc
+  PD_MODEL := examples/person_detection/model/person_detect_model_data.cc
 endif
 
 MS_SRCS := \
@@ -235,8 +252,13 @@ $(OBJDIR)/examples/person_detection/%.o: examples/person_detection/%.cc
 # Global rules
 #=================================================================
 
-APP_RUN := mdb -run -tcf=$(TCF_FILE) $(DBG_ARGS)
-APP_DEBUG := mdb -OK -tcf=$(TCF_FILE) $(DBG_ARGS)
+ifneq ($(filter $(ARC_TAGS), emsdp),)
+  APP_RUN := mdb -run -digilent -nooptions $(DBG_ARGS)
+  APP_DEBUG := mdb -OK -digilent -nooptions $(DBG_ARGS)
+else
+  APP_RUN := mdb -run -tcf=$(TCF_FILE) $(DBG_ARGS)
+  APP_DEBUG := mdb -OK -tcf=$(TCF_FILE) $(DBG_ARGS)
+endif
 
 microlite: $(LIBTFLM)
 
