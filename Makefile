@@ -99,9 +99,10 @@ endif
 
 ifneq ($(filter $(ARC_TAGS), mli20_experimental),)
   EMBARC_MLI_URL := "https://github.com/foss-for-synopsys-dwc-arc-processors/embarc_mli/archive/refs/tags/Release_2.0.zip"
-  EMBARC_MLI_MD5 := "173990c2dde4efef6a2c95b92d1f0244"
+  EMBARC_MLI_MD5 := "13dcc1ea81ed836326a616e7e842ae4d"
 else ifneq ($(filter $(ARC_TAGS), emsdp),)
   EMBARC_MLI_URL := "https://github.com/foss-for-synopsys-dwc-arc-processors/embarc_mli/releases/download/Release_1.1/embARC_MLI_package.zip"
+  EMBARC_MLI_MD5 := "173990c2dde4efef6a2c95b92d1f0244"
 else
   EMBARC_MLI_URL := "https://github.com/foss-for-synopsys-dwc-arc-processors/embarc_mli/archive/refs/tags/Release_1.1.zip"
   EMBARC_MLI_MD5 := "22555d76097727b00e731563b42cb098"
@@ -296,7 +297,7 @@ clean_all: clean clean_mli
 	-@$(RM) `find examples -type d -name adapted_model`
 
 build_mli:
-	-@$(DOWNLOAD_SCRIPT) $(MLI_LIB_DIR) $(TCF_FILE) $(EMBARC_MLI_URL)
+	@$(DOWNLOAD_SCRIPT) $(MLI_LIB_DIR) $(TCF_FILE) $(EMBARC_MLI_URL) $(EMBARC_MLI_MD5)
 
 adapt_model:
 	-@$(ADAPTATION_SCRIPT) $(MODEL_NAME)

@@ -26,6 +26,7 @@ download_mli() {
 	MLI_LIB_DIR=${1}
 	TCF_FILE=${2}
 	local EMBARC_MLI_URL=${3}
+	local EMBARC_MLI_MD5=${4}
 
   	# Check if destionation already downloaded.
 	if [[ ! -d ${PWD}/${MLI_LIB_DIR} ]]; then
@@ -34,6 +35,11 @@ download_mli() {
 		TMP=$(mktemp)
 		TMP_DIR=$(mktemp -d)
 		curl -LsS --fail --retry 5 ${EMBARC_MLI_URL} -o ${TMP}
+		DOWNLOADED_MD5=$(openssl dgst -md5 ${TMP} | sed 's/.* //g')
+		if [ ${EMBARC_MLI_MD5} != ${DOWNLOADED_MD5} ]; then
+    		echo "Checksum error for '${EMBARC_MLI_URL}'. Expected ${EMBARC_MLI_MD5} but found ${DOWNLOADED_MD5}"
+   			exit 1
+  		fi
 		echo "Unpacking MLI archive..."
 		unzip ${TMP} -d ${TMP_DIR} 2>&1 1>/dev/null
 		cp -R ${TMP_DIR}/*/* ${MLI_LIB_DIR}/
@@ -42,6 +48,6 @@ download_mli() {
 	fi
 }
 
-set +e
+download_mli "$1" "$2" "$3" "$4"
 
-download_mli "$1" "$2" "$3"
+set +e
