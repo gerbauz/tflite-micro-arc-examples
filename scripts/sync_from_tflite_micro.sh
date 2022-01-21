@@ -36,7 +36,7 @@ rm -rf tensorflow
 rm -rf third_party
 rm -rf examples
 mv "${TEMP_DIR}/tflm-arc/tensorflow" tensorflow
-mv "${TEMP_DIR}/tflm-arc/third_party" tensorflow
+mv "${TEMP_DIR}/tflm-arc/third_party" third_party
 mv "${TEMP_DIR}/tflm-arc/examples" examples
 mkdir examples/micro_speech/model
 mv examples/micro_speech/micro_speech_model_data.cc examples/micro_speech/model/micro_speech_model_data.cc
