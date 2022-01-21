@@ -189,8 +189,8 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
 #endif
     data->mli_in.Shape()[2] = 0;
     data->mli_in.Shape()[3] = 0;
-	data->mli_in.MemStride()[0] = data->mli_in.Shape()[1];
-	data->mli_in.MemStride()[1] = 0;
+    data->mli_in.MemStride()[0] = data->mli_in.Shape()[1];
+    data->mli_in.MemStride()[1] = 0;
     *data->mli_in.Rank() = 2;
   }
 
