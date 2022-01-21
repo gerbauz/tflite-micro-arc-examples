@@ -46,11 +46,16 @@ inline void ConvertToMliTensorData(const TfLiteTensor* tfT,
   *mliT->Rank() = is_bias_tensor ? 1 : dims_count;
 
   int mli_tensor_memstride = 1;
+  if (is_bias_tensor) {
+    mliT->Shape()[0] = GetTensorShape(tfT).Dims(dims_count - 1);
+    mliT->MemStride()[0] = mli_tensor_memstride;
+  } else {
     for (int i = dims_count - 1; i >= 0; --i) {
       mliT->Shape()[i] = GetTensorShape(tfT).Dims(i);
       mliT->MemStride()[i] = mli_tensor_memstride;
       mli_tensor_memstride *= GetTensorShape(tfT).Dims(i);
     }
+  }
 }
 
 inline void ConvertToMliQuantParams(const TfLiteTensor* tfT,
@@ -211,6 +216,10 @@ inline void permute_weights(const mli_tensor* weights_src,
   int weights_size = mli_hlp_count_elem_num(weights_src, 0) *
                      mli_hlp_tensor_element_size(weights_src);
 
+  // Need to change shape of distanation weights buffer according to permute
+  // dimensions order to calculate slice sizes
+  change_shape(weights_dst, permute_cfg->perm_dim);
+
   if (buffer_size >= weights_size) {
     mli_mov_cfg_t copy_config;
     mli_mov_cfg_for_copy(&copy_config);
@@ -227,10 +236,6 @@ inline void permute_weights(const mli_tensor* weights_src,
     uint32_t src_offsets[] = {0, 0, 0, 0};
     uint32_t src_sizes[] = {0, 0, 0, 0};
     int dst_mem_stride[] = {0, 0, 0, 0};
-
-    // Need to change shape of distanation weights buffer according to permute
-    // dimensions order to calculate slice sizes
-    change_shape(weights_dst, permute_cfg->perm_dim);
 
     mli_tensor weights_dst_sub_tensor;
     mli_sub_tensor_cfg sub_tensor_cfg = {};
