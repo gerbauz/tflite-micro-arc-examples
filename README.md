@@ -1,6 +1,6 @@
 # TensorFlow Lite Micro Library Examples for EmbARC MLI Library
  
-This repository contains [TensorFlow Lite Micro Library (TFLM)](https://github.com/tensorflow/tflite-micro) examples and script files to run them on ARC platforms using The Synopsys DesignWare ARC MetaWare Development Toolkit (MWDT).
+This repository contains [TensorFlow Lite Micro Library (TFLM)](https://github.com/tensorflow/tflite-micro) examples and script files to run them on ARC platforms using [The Synopsys DesignWare ARC MetaWare Development Toolkit (MWDT)](https://www.synopsys.com/dw/ipdir.php?ds=sw_metaware).
 
 ## Table of Contents
 
