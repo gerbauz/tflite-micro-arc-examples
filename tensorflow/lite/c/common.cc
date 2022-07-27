@@ -14,12 +14,18 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/lite/c/common.h"
+
 #include "tensorflow/lite/c/c_api_types.h"
+#ifdef TF_LITE_TENSORFLOW_PROFILER
+#include "tensorflow/lite/tensorflow_profiler_logger.h"
+#endif
 
 #ifndef TF_LITE_STATIC_MEMORY
 #include <stdlib.h>
 #include <string.h>
 #endif  // TF_LITE_STATIC_MEMORY
+
+extern "C" {
 
 size_t TfLiteIntArrayGetSizeInBytes(int size) {
   static TfLiteIntArray dummy;
@@ -34,13 +40,13 @@ size_t TfLiteIntArrayGetSizeInBytes(int size) {
 
 int TfLiteIntArrayEqual(const TfLiteIntArray* a, const TfLiteIntArray* b) {
   if (a == b) return 1;
-  if (a == NULL || b == NULL) return 0;
+  if (a == nullptr || b == nullptr) return 0;
   return TfLiteIntArrayEqualsArray(a, b->size, b->data);
 }
 
 int TfLiteIntArrayEqualsArray(const TfLiteIntArray* a, int b_size,
                               const int b_data[]) {
-  if (a == NULL) return (b_size == 0);
+  if (a == nullptr) return (b_size == 0);
   if (a->size != b_size) return 0;
   int i = 0;
   for (; i < a->size; i++)
@@ -52,7 +58,7 @@ int TfLiteIntArrayEqualsArray(const TfLiteIntArray* a, int b_size,
 
 TfLiteIntArray* TfLiteIntArrayCreate(int size) {
   size_t alloc_size = TfLiteIntArrayGetSizeInBytes(size);
-  if (alloc_size <= 0) return NULL;
+  if (alloc_size <= 0) return nullptr;
   TfLiteIntArray* ret = (TfLiteIntArray*)malloc(alloc_size);
   if (!ret) return ret;
   ret->size = size;
@@ -60,7 +66,7 @@ TfLiteIntArray* TfLiteIntArrayCreate(int size) {
 }
 
 TfLiteIntArray* TfLiteIntArrayCopy(const TfLiteIntArray* src) {
-  if (!src) return NULL;
+  if (!src) return nullptr;
   TfLiteIntArray* ret = TfLiteIntArrayCreate(src->size);
   if (ret) {
     memcpy(ret->data, src->data, src->size * sizeof(int));
@@ -97,9 +103,14 @@ void TfLiteFloatArrayFree(TfLiteFloatArray* a) { free(a); }
 void TfLiteTensorDataFree(TfLiteTensor* t) {
   if (t->allocation_type == kTfLiteDynamic ||
       t->allocation_type == kTfLitePersistentRo) {
-    free(t->data.raw);
+    if (t->data.raw) {
+#ifdef TF_LITE_TENSORFLOW_PROFILER
+      tflite::OnTfLiteTensorDealloc(t);
+#endif
+      free(t->data.raw);
+    }
   }
-  t->data.raw = NULL;
+  t->data.raw = nullptr;
 }
 
 void TfLiteQuantizationFree(TfLiteQuantization* quantization) {
@@ -108,31 +119,31 @@ void TfLiteQuantizationFree(TfLiteQuantization* quantization) {
         (TfLiteAffineQuantization*)(quantization->params);
     if (q_params->scale) {
       TfLiteFloatArrayFree(q_params->scale);
-      q_params->scale = NULL;
+      q_params->scale = nullptr;
     }
     if (q_params->zero_point) {
       TfLiteIntArrayFree(q_params->zero_point);
-      q_params->zero_point = NULL;
+      q_params->zero_point = nullptr;
     }
     free(q_params);
   }
-  quantization->params = NULL;
+  quantization->params = nullptr;
   quantization->type = kTfLiteNoQuantization;
 }
 
 void TfLiteSparsityFree(TfLiteSparsity* sparsity) {
-  if (sparsity == NULL) {
+  if (sparsity == nullptr) {
     return;
   }
 
   if (sparsity->traversal_order) {
     TfLiteIntArrayFree(sparsity->traversal_order);
-    sparsity->traversal_order = NULL;
+    sparsity->traversal_order = nullptr;
   }
 
   if (sparsity->block_map) {
     TfLiteIntArrayFree(sparsity->block_map);
-    sparsity->block_map = NULL;
+    sparsity->block_map = nullptr;
   }
 
   if (sparsity->dim_metadata) {
@@ -141,13 +152,13 @@ void TfLiteSparsityFree(TfLiteSparsity* sparsity) {
       TfLiteDimensionMetadata metadata = sparsity->dim_metadata[i];
       if (metadata.format == kTfLiteDimSparseCSR) {
         TfLiteIntArrayFree(metadata.array_segments);
-        metadata.array_segments = NULL;
+        metadata.array_segments = nullptr;
         TfLiteIntArrayFree(metadata.array_indices);
-        metadata.array_indices = NULL;
+        metadata.array_indices = nullptr;
       }
     }
     free(sparsity->dim_metadata);
-    sparsity->dim_metadata = NULL;
+    sparsity->dim_metadata = nullptr;
   }
 
   free(sparsity);
@@ -156,16 +167,16 @@ void TfLiteSparsityFree(TfLiteSparsity* sparsity) {
 void TfLiteTensorFree(TfLiteTensor* t) {
   TfLiteTensorDataFree(t);
   if (t->dims) TfLiteIntArrayFree(t->dims);
-  t->dims = NULL;
+  t->dims = nullptr;
 
   if (t->dims_signature) {
-    TfLiteIntArrayFree((TfLiteIntArray *) t->dims_signature);
+    TfLiteIntArrayFree((TfLiteIntArray*)t->dims_signature);
   }
-  t->dims_signature = NULL;
+  t->dims_signature = nullptr;
 
   TfLiteQuantizationFree(&t->quantization);
   TfLiteSparsityFree(t->sparsity);
-  t->sparsity = NULL;
+  t->sparsity = nullptr;
 }
 
 void TfLiteTensorReset(TfLiteType type, const char* name, TfLiteIntArray* dims,
@@ -185,20 +196,16 @@ void TfLiteTensorReset(TfLiteType type, const char* name, TfLiteIntArray* dims,
   tensor->is_variable = is_variable;
 
   tensor->quantization.type = kTfLiteNoQuantization;
-  tensor->quantization.params = NULL;
+  tensor->quantization.params = nullptr;
 }
 
 TfLiteStatus TfLiteTensorCopy(const TfLiteTensor* src, TfLiteTensor* dst) {
-  if (!src || !dst)
-    return kTfLiteOk;
-  if (src->bytes != dst->bytes)
-    return kTfLiteError;
-  if (src == dst)
-    return kTfLiteOk;
+  if (!src || !dst) return kTfLiteOk;
+  if (src->bytes != dst->bytes) return kTfLiteError;
+  if (src == dst) return kTfLiteOk;
 
   dst->type = src->type;
-  if (dst->dims)
-    TfLiteIntArrayFree(dst->dims);
+  if (dst->dims) TfLiteIntArrayFree(dst->dims);
   dst->dims = TfLiteIntArrayCopy(src->dims);
   memcpy(dst->data.raw, src->data.raw, src->bytes);
   dst->buffer_handle = src->buffer_handle;
@@ -216,8 +223,17 @@ void TfLiteTensorRealloc(size_t num_bytes, TfLiteTensor* tensor) {
   // TODO(b/145340303): Tensor data should be aligned.
   if (!tensor->data.raw) {
     tensor->data.raw = (char*)malloc(num_bytes);
+#ifdef TF_LITE_TENSORFLOW_PROFILER
+    tflite::OnTfLiteTensorAlloc(tensor, num_bytes);
+#endif
   } else if (num_bytes > tensor->bytes) {
+#ifdef TF_LITE_TENSORFLOW_PROFILER
+    tflite::OnTfLiteTensorDealloc(tensor);
+#endif
     tensor->data.raw = (char*)realloc(tensor->data.raw, num_bytes);
+#ifdef TF_LITE_TENSORFLOW_PROFILER
+    tflite::OnTfLiteTensorAlloc(tensor, num_bytes);
+#endif
   }
   tensor->bytes = num_bytes;
 }
@@ -229,6 +245,8 @@ const char* TfLiteTypeGetName(TfLiteType type) {
       return "NOTYPE";
     case kTfLiteFloat32:
       return "FLOAT32";
+    case kTfLiteUInt16:
+      return "UINT16";
     case kTfLiteInt16:
       return "INT16";
     case kTfLiteInt32:
@@ -263,14 +281,6 @@ const char* TfLiteTypeGetName(TfLiteType type) {
   return "Unknown type";
 }
 
-TfLiteDelegate TfLiteDelegateCreate(void) {
-  TfLiteDelegate d = {
-      .data_ = NULL,
-      .Prepare = NULL,
-      .CopyFromBufferHandle = NULL,
-      .CopyToBufferHandle = NULL,
-      .FreeBufferHandle = NULL,
-      .flags = kTfLiteDelegateFlagsNone,
-  };
-  return d;
-}
+TfLiteDelegate TfLiteDelegateCreate() { return TfLiteDelegate{}; }
+
+}  // extern "C"
