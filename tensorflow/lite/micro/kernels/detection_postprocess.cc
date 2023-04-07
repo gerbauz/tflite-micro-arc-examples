@@ -149,19 +149,20 @@ void* Init(TfLiteContext* context, const char* buffer, size_t length) {
   return op_data;
 }
 
-void Free(TfLiteContext* context, void* buffer) {}
-
 TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
   auto* op_data = static_cast<OpData*>(node->user_data);
 
+  MicroContext* micro_context = GetMicroContext(context);
+
   // Inputs: box_encodings, scores, anchors
   TF_LITE_ENSURE_EQ(context, NumInputs(node), 3);
-  const TfLiteTensor* input_box_encodings =
-      GetInput(context, node, kInputTensorBoxEncodings);
-  const TfLiteTensor* input_class_predictions =
-      GetInput(context, node, kInputTensorClassPredictions);
-  const TfLiteTensor* input_anchors =
-      GetInput(context, node, kInputTensorAnchors);
+  TfLiteTensor* input_box_encodings =
+      micro_context->AllocateTempInputTensor(node, kInputTensorBoxEncodings);
+  TfLiteTensor* input_class_predictions =
+      micro_context->AllocateTempInputTensor(node,
+                                             kInputTensorClassPredictions);
+  TfLiteTensor* input_anchors =
+      micro_context->AllocateTempInputTensor(node, kInputTensorAnchors);
   TF_LITE_ENSURE_EQ(context, NumDimensions(input_box_encodings), 3);
   TF_LITE_ENSURE_EQ(context, NumDimensions(input_class_predictions), 3);
   TF_LITE_ENSURE_EQ(context, NumDimensions(input_anchors), 2);
@@ -218,6 +219,10 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
   // Outputs: detection_boxes, detection_scores, detection_classes,
   // num_detections
   TF_LITE_ENSURE_EQ(context, NumOutputs(node), 4);
+
+  micro_context->DeallocateTempTfLiteTensor(input_box_encodings);
+  micro_context->DeallocateTempTfLiteTensor(input_class_predictions);
+  micro_context->DeallocateTempTfLiteTensor(input_anchors);
 
   return kTfLiteOk;
 }
@@ -794,15 +799,9 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
 }
 }  // namespace
 
-TfLiteRegistration* Register_DETECTION_POSTPROCESS() {
-  static TfLiteRegistration r = {/*init=*/Init,
-                                 /*free=*/Free,
-                                 /*prepare=*/Prepare,
-                                 /*invoke=*/Eval,
-                                 /*profiling_string=*/nullptr,
-                                 /*builtin_code=*/0,
-                                 /*custom_name=*/nullptr,
-                                 /*version=*/0};
+TfLiteRegistration_V1* Register_DETECTION_POSTPROCESS() {
+  static TfLiteRegistration_V1 r =
+      tflite::micro::RegisterOp(Init, Prepare, Eval);
   return &r;
 }
 
