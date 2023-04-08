@@ -24,6 +24,7 @@ limitations under the License.
 #include "tensorflow/lite/kernels/op_macros.h"
 #include "tensorflow/lite/micro/flatbuffer_utils.h"
 #include "tensorflow/lite/micro/kernels/kernel_util.h"
+#include "tensorflow/lite/micro/micro_log.h"
 
 /*
  * The circular buffer custom operator is used to implement strided streaming
@@ -90,7 +91,7 @@ TfLiteStatus CircularBufferEval(TfLiteContext* context, TfLiteNode* node) {
     EvalInt8(tflite::micro::GetTensorData<int8_t>(input), num_slots, depth,
              tflite::micro::GetTensorData<int8_t>(output));
   } else {
-    TF_LITE_KERNEL_LOG(context, "Type %s (%d) not supported.",
+    MicroPrintf("Type %s (%d) not supported.",
                        TfLiteTypeGetName(input->type), input->type);
     return kTfLiteError;
   }
@@ -107,15 +108,9 @@ TfLiteStatus CircularBufferEval(TfLiteContext* context, TfLiteNode* node) {
   return kTfLiteOk;
 }
 
-TfLiteRegistration* Register_CIRCULAR_BUFFER() {
-  static TfLiteRegistration r = {/*init=*/CircularBufferInit,
-                                 /*free=*/nullptr,
-                                 /*prepare=*/CircularBufferPrepare,
-                                 /*invoke=*/CircularBufferEval,
-                                 /*profiling_string=*/nullptr,
-                                 /*builtin_code=*/0,
-                                 /*custom_name=*/nullptr,
-                                 /*version=*/0};
+TfLiteRegistration_V1* Register_CIRCULAR_BUFFER() {
+  static TfLiteRegistration_V1 r = tflite::micro::RegisterOp(
+      CircularBufferInit, CircularBufferPrepare, CircularBufferEval);
   return &r;
 }
 

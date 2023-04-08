@@ -30,6 +30,7 @@ limitations under the License.
 #include "tensorflow/lite/micro/kernels/arc_mli/scratch_buf_mgr.h"
 #include "tensorflow/lite/micro/kernels/arc_mli/scratch_buffers.h"
 #include "tensorflow/lite/micro/kernels/kernel_util.h"
+#include "tensorflow/lite/micro/micro_log.h"
 
 namespace tflite {
 namespace {
@@ -137,10 +138,15 @@ TfLiteStatus CalculateOpData(TfLiteContext* context, TfLiteNode* node,
   // Note that quantized inference requires that all tensors have their
   // parameters set. This is usually done during quantized training.
 #if !defined(TF_LITE_STRIP_REFERENCE_IMPL)
-  const TfLiteTensor* input = GetInput(context, node, kInputTensor);
-  const TfLiteTensor* filter = GetInput(context, node, kFilterTensor);
-  const TfLiteTensor* bias = GetOptionalInputTensor(context, node, kBiasTensor);
-  TfLiteTensor* output = GetOutput(context, node, kOutputTensor);
+  MicroContext* micro_context = GetMicroContext(context);
+  TfLiteTensor* input =
+      micro_context->AllocateTempInputTensor(node, kInputTensor);
+  TfLiteTensor* filter =
+      micro_context->AllocateTempInputTensor(node, kFilterTensor);
+  TfLiteTensor* bias =
+      micro_context->AllocateTempInputTensor(context, node, kBiasTensor);
+  TfLiteTensor* output =
+      micro_context->AllocateTempOutputTensor(node, kOutputTensor);
 
   if (data_type != kTfLiteFloat32 && !data->is_mli_applicable) {
     int output_channels = filter->dims->data[kConvQuantizedDimension];
@@ -153,6 +159,11 @@ TfLiteStatus CalculateOpData(TfLiteContext* context, TfLiteNode* node,
         reinterpret_cast<int*>(data->per_channel_output_shift),
         output_channels));
   }
+
+  micro_context->DeallocateTempTfLiteTensor(input);
+  micro_context->DeallocateTempTfLiteTensor(filter);
+  micro_context->DeallocateTempTfLiteTensor(bias);
+  micro_context->DeallocateTempTfLiteTensor(output);
 #endif
   return kTfLiteOk;
 }
@@ -168,10 +179,16 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
   OpData* data = static_cast<OpData*>(node->user_data);
   const auto params = static_cast<const TfLiteConvParams*>(node->builtin_data);
 
-  TfLiteTensor* output = GetOutput(context, node, kOutputTensor);
-  const TfLiteTensor* input = GetInput(context, node, kInputTensor);
-  const TfLiteTensor* filter = GetInput(context, node, kFilterTensor);
-  const TfLiteTensor* bias = GetOptionalInputTensor(context, node, kBiasTensor);
+  MicroContext* micro_context = GetMicroContext(context);
+
+  TfLiteTensor* output =
+      micro_context->AllocateTempOutputTensor(node, kOutputTensor);
+  TfLiteTensor* input =
+      micro_context->AllocateTempInputTensor(node, kInputTensor);
+  TfLiteTensor* filter =
+      micro_context->AllocateTempInputTensor(node, kFilterTensor);
+  TfLiteTensor* bias =
+      micro_context->AllocateTempInputTensor(context, node, kBiasTensor);
 
   int input_width = input->dims->data[2];
   int input_height = input->dims->data[1];
@@ -330,6 +347,11 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
           data->padding.height + data->padding.height_offset;
     }
   }
+
+  micro_context->DeallocateTempTfLiteTensor(output);
+  micro_context->DeallocateTempTfLiteTensor(input);
+  micro_context->DeallocateTempTfLiteTensor(filter);
+  micro_context->DeallocateTempTfLiteTensor(bias);
   return kTfLiteOk;
 }
 
@@ -474,8 +496,7 @@ TfLiteStatus EvalMliQuantizedPerChannel(
               out_slice.Sub()->shape[FMAP_C_DIM_HWC] ||
           data.mli_out.Shape()[height_dimension] !=
               out_slice.Sub()->shape[FMAP_H_DIM_HWC]) {
-        TF_LITE_KERNEL_LOG(
-            context, "Slicing is not supported with real-time permutation.");
+        MicroPrintf("Slicing is not supported with real-time permutation.");
         return kTfLiteError;
       }
       mli_permute_cfg permute_cfg = {{1, 2, 3, 0}};
@@ -559,8 +580,7 @@ void EvalQuantizedPerChannel(TfLiteContext* context, TfLiteNode* node,
       tflite::micro::GetTensorShape(output),
       tflite::micro::GetTensorData<int8_t>(output));
 #else
-  TF_LITE_KERNEL_LOG(context,
-                     "Node configuration is not supported by ARC MLI Library.");
+  MicroPrintf("Node configuration is not supported by ARC MLI Library.");
 #endif
 }
 
@@ -594,8 +614,7 @@ void EvalQuantizedPerChannelInt16(TfLiteContext* context, TfLiteNode* node,
       tflite::micro::GetTensorShape(output),
       tflite::micro::GetTensorData<int16_t>(output));
 #else
-  TF_LITE_KERNEL_LOG(context,
-                     "Node configuration is not supported by ARC MLI Library.");
+  MicroPrintf("Node configuration is not supported by ARC MLI Library.");
 #endif
 }
 
@@ -630,9 +649,8 @@ void EvalFloat(TfLiteContext* context, TfLiteNode* node,
                       tflite::micro::GetTensorShape(im2col),
                       tflite::micro::GetTensorData<float>(im2col));
 #else
-  TF_LITE_KERNEL_LOG(context,
-                     "Type %s (%d) is not supported by ARC MLI Library.",
-                     TfLiteTypeGetName(input->type), input->type);
+  MicroPrintf("Type %s (%d) is not supported by ARC MLI Library.",
+              TfLiteTypeGetName(input->type), input->type);
 #endif
 }
 
@@ -677,8 +695,8 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
                                    bias, output);
       break;
     default:
-      TF_LITE_KERNEL_LOG(context, "Type %s (%d) not supported.",
-                         TfLiteTypeGetName(input->type), input->type);
+      MicroPrintf("Type %s (%d) not supported.", TfLiteTypeGetName(input->type),
+                  input->type);
       return kTfLiteError;
   }
   return kTfLiteOk;
@@ -686,15 +704,8 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
 
 }  // namespace
 
-TfLiteRegistration Register_CONV_2D() {
-  return {/*init=*/Init,
-          /*free=*/nullptr,
-          /*prepare=*/Prepare,
-          /*invoke=*/Eval,
-          /*profiling_string=*/nullptr,
-          /*builtin_code=*/0,
-          /*custom_name=*/nullptr,
-          /*version=*/0};
+TfLiteRegistration_V1 Register_CONV_2D() {
+  return tflite::micro::RegisterOp(Init, Prepare, Eval);
 }
 
 }  // namespace tflite
